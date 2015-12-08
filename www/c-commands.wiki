@@ -1,0 +1,17 @@
+<title>Commands</title>
+This pages describes how to use Jsi_CmdSpec.
+Search for Jsi_CmdSpec in [../jsi.h#Jsi_CmdSpec|jsi.h] for details.
+
+Commands are typically defined en-mass, eg.
+
+    <nowiki><pre class=verbatim>
+static Jsi_CmdSpec dateCmds[] = {
+    { "now",    DateNowCmd,     NULL,   0,  1, "?flags?",  .help="Return current time in ms since unix epoch (1970)" },
+    { "format", DateFormatCmd,  NULL,  1,  3, "num,?format,flags?",  .help="Format time" },
+    { "parse",  DateParseCmd,   NULL,   1,  2, "string,?flags?",  .help="Parse time string and return time in ms since 1970" },
+    { NULL,     NULL,  }
+};
+
+Jsi_SetupCmdSpecs(interp, "Date",   dateCmds,  NULL, JSI_CMDSPEC_NOTOBJ);
+</pre></nowiki>
+

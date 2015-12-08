@@ -1,0 +1,55 @@
+<title>Errors</title>
+
+<h4>Try/Catch</h4>
+
+in Jsi (unlike EcmaScript) <b>try</b> will pass a string to <b>catch</b> upon error, not an object eg.
+
+    <nowiki><pre class=verbatim>
+try { badcall(); } catch(e) { puts("Note e is a string: "+e); }
+</pre></nowiki>
+
+<h4>Error Diagnostics</h4>
+
+Upon error, Jsi does not generate tracebacks.  Instead a gcc style warning
+containing the file and line number is output.
+For example:
+
+    <nowiki><pre class=verbatim>
+var x = 1;
+foo(x)
+</pre></nowiki>
+This results in the following diagnostic:
+
+    <nowiki><pre class=verbatim>
+/home/user/myjsi/foo.js:2: error: 'foo', sub-commands are: Array Boolean Date File 
+   Function Interp JSON Math Number Object RegExp Sqlite String Websocket alert 
+   assert clearInterval console decodeURI encodeURI exit file format include info
+   isFinite isNaN load parseFloat parseInt puts quote setInterval setTimeout signal
+   sys util zvfs.
+</pre></nowiki>
+
+The file and line number is reported, as well as an enumeration of known commands 
+in the given scope. 
+The first allows errors to be [./editors.wiki|parsable by IDE's]. 
+The latter helps determine available options without resorting 
+program documentation.
+
+<h4>Enumerated Methods</h4>
+
+Similarly an objects sub-methods will be enumerated:
+
+    <nowiki><pre class=verbatim>
+# info.xx()
+error: 'info', sub-commands are: cmds data error events executable funcs named platform revisions script vars version.    (at or near string "xx")
+</pre></nowiki>
+
+<h4>Displayed Arguments</h4>
+
+And arguments to builtin methods part of the diagnostic:
+
+    <nowiki><pre class=verbatim>
+# format()
+error: missing args, expected "format(format?,arg,arg?)" 
+</pre></nowiki>
+
+

@@ -1,0 +1,5 @@
+<title>Threads</title>
+Threads are supported in Jsi, each interp can have only a one thread. This means that thread support is only available by creating threads with the option {subthread:true}.
+
+This is used in conjunction with Events to multitask a single Jsi program.
+

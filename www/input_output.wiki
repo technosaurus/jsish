@@ -1,0 +1,46 @@
+<title>Input/Output</title>
+
+Jsi offers numerous input/output facilities. This page documents basic IO facilities.
+<hr>
+<h4>console.log(str)</h4>
+
+The console.log method simply outputs a string to stderr.
+
+<hr>
+<h4>puts(str)</h4>
+
+The puts method outputs a string to stdout.
+With 1 or 0 arguments a newline is appended.
+
+    <nowiki><pre class=verbatim>
+puts("Hello World");
+puts("Hello"," World\n");
+</pre></nowiki>
+
+Scripts also used in web browsers can add the following for compatibility:
+
+    <nowiki><pre class=verbatim>
+if (puts === undefined)
+    var puts = console.log.bind(console);
+</pre></nowiki>
+
+<hr>
+<h4>console.input()</h4>
+
+User input can be obtained using console.input():
+
+    <nowiki><pre class=verbatim>
+puts("Enter your name: ", "");
+var str = console.input();
+</pre></nowiki>
+
+<hr>
+<h4>console.args</h4>
+
+Program arguments are available using console.args:
+
+    <nowiki><pre class=verbatim>
+for (var i in console.args) {
+   puts(console.args[i]);
+}
+</pre></nowiki>

@@ -1,0 +1,239 @@
+<title>Sqlite</title>
+[./reference.wiki#Sqlite|&lt;Sqlite Reference&gt;]
+
+This page describes a number of features of the sqlite driver built into Jsi. 
+For the full API see the link above.
+<hr>
+<h3>Using exec()</h3>
+
+The function <b>"exec(query?,options?)"</b>
+compiles a query, performs variable substitution, and then executes it.
+
+    <nowiki><pre class=verbatim>
+  var db = new Sqlite('/tmp/testsql.db');
+  db.evaluate('create table foo(a,b)'+
+    'insert into foo VALUES(1,2);'+
+    'insert into foo VALUES("X","Y")');
+  var x = db.exec('select * from foo');
+</pre></nowiki>
+
+The default output for [#mode|mode] for <b>exec()</b> is <b>"rows"</b>, meaning that an array of row-objects
+is to be returned. ie.
+
+    <nowiki><pre class=verbatim>
+  [ { a:1, b:2 }, { a:"X", b:"Y" } ]
+</pre></nowiki>
+
+<hr>
+<h4>Variable Substitution</h4>
+
+Variable substitution is indicated in a query by a <b>"@"</b>, <b>":"</b>, or <b>"$"</b>, eg:
+
+    <nowiki><pre class=verbatim>
+  var a = 3, b = 'Z', c = 2;
+  db.exec('insert into foo VALUES(@a,@b)');
+  db.exec('insert into foo VALUES(:b, $c)')
+</pre></nowiki>
+
+Additionally, the <b>"$"</b> prefix permits round braces for indicating an array dereference.
+
+    <nowiki><pre class=verbatim>
+  var h = { x:1, y:2, z:"three" };
+  for (var X in h) {
+    db.exec('insert into foo VALUES($X, $h(X) )');
+  }
+
+  var g = [ 1, 2, "three" ];
+  for (var X in g) {
+    db.exec('insert into foo VALUES($X, $g(X) )');
+  }
+</pre></nowiki>
+
+In other words, <b>"$h(X)"</b> is equivalent to <b><nowiki>"h[X]"</nowiki></b> in javascript.
+The index <b>"X"</b> is treated as a variable,
+unless it is a quoted string or integer, as in:
+
+    <nowiki><pre class=verbatim>
+   db.exec('insert into foo VALUES($g(2), $h("z") )');
+</pre></nowiki>
+
+If deeper object dereferencing is required, one should consider using the javascript <b>"with"</b> operator.
+<hr>
+<a name=mode />
+<h4>Output Mode</h4>
+
+The default mode for <i>exec()</i> is <b>rows</b>.  But this can be changed using <b>"mode"</b>:
+
+    <nowiki><pre class=verbatim>
+  var x = db.exec('select * from foo', {mode:'array1d'});
+</pre></nowiki>
+
+this returns:
+
+    <nowiki><pre class=verbatim>
+  [ 1, 2, "X", "Y", 3, "Z" ]
+</pre></nowiki>
+
+Following are the supported output modes:
+
+    <p><nowiki>
+<table border='1' class='cmdstbl' ><tr ><th  >Mode</th><th  >Description</th></tr>
+<tr ><td >array1d</td><td >Flat array of values</td></tr>
+<tr ><td >arrays</td><td >An array of row-arrays</td></tr>
+<tr ><td >column</td><td >Column aligned text<b>*</b></td></tr>
+<tr ><td >csv</td><td >Comma (or separator) separated values<b>*</b></td></tr>
+<tr ><td >html</td><td >Html table rows<b>*</b></td></tr>
+<tr ><td >insert</td><td >Sql insert statements<b>*</b></td></tr>
+<tr ><td >json</td><td >JSON string as an array of objects</td></tr>
+<tr ><td >json2</td><td >JSON string with names/values in separate arrays</td></tr>
+<tr ><td >line</td><td >One value per line in name=value form<b>*</b></td></tr>
+<tr ><td >list</td><td >The default sqlite3 output<b>*</b></td></tr>
+<tr ><td >none</td><td >No output</td></tr>
+<tr ><td >rows</td><td >An array of row-objects (default)</td></tr>
+<tr ><td >tabs</td><td >Tab (or separator) separated values<b>*</b></td></tr>
+</table></nowiki>
+
+<b>Note:</b> descriptions marked with a <b>*</b> are equivalent to the sqlite3 command-line utility.
+<p><b>Note2:</b> some of the above are affected by setting the headers and separator options.
+
+
+The list may seem daunting, but generally the <b>json*</b> modes are for generating output
+destined for a web browser
+(ie. via [./js-websocket.wiki|websockets]), while the <b>rows/array*</b> modes are mostly for
+script processing.  All the rest are the same as the command-line utility.
+<hr>
+<h4>Callback Function</h4>
+
+Normally, exec() will execute an entire query before returning the result.
+There are two ways to change this: either provide a <b>callback</b> option, or
+make the second argument to exec  a function.
+Either way this results in callback invocation for
+each row result: 
+
+    <nowiki><pre class=verbatim>
+  function myfunc(n) { puts("a="+n.a + ", b="+n.b); }
+  db.exec('select * from foo',myfunc);
+</pre></nowiki>
+
+And if the callback function returns false, evaluation will terminate. 
+
+    <nowiki><pre class=verbatim>
+  db.exec('select * from foo', function (n) {
+    puts("a="+n.a + ", b="+n.b);
+    if (a>1) return false;
+  });
+</pre></nowiki>
+
+<hr>
+<h4>JSON</h4>
+
+The <i>exec()</i> json modes are useful
+for data destined to be sent to a web browser (ie. via WebSocket). 
+
+    <nowiki><pre class=verbatim>
+  db.evaluate('drop table IF EXISTS foo; create table foo(a,b);');
+  var n = 0, x = 99;
+  while (n++ < 3) {
+    db.exec('insert into foo values(@x,@n)');
+    x -= 4;
+  }
+  puts(x=db.exec('select * from foo',{mode:'json'}));
+</pre></nowiki>
+
+which outputs:
+
+    <nowiki><pre class=verbatim>
+   [ {"a":99, "b":1}, {"a":95, "b":2}, {"a":91, "b":3} ]
+</pre></nowiki>
+
+Adding the headers option can help compact large data sets, with column names in the first row:
+
+    <nowiki><pre class=verbatim>
+  puts(db.exec('select * from foo',{mode:'json', headers:true}));
+</pre></nowiki>
+
+which outputs:
+
+    <nowiki><pre class=verbatim>
+  [ ["a", "b"], [99, 1], [95, 2], [91, 3] ]
+</pre></nowiki>
+
+And finally the <b>"json2"</b> mode lets you split the output
+into their own object members <b>"names"</b>/<b>"values"</b>:
+
+    <nowiki><pre class=verbatim>
+  puts(db.exec('select * from foo',{mode:'json2'}));
+</pre></nowiki>
+which outputs:
+
+    <nowiki><pre class=verbatim>
+  { "names": [ "a", "b" ], "values": [ [99, 1 ], [95, 2 ], [91, 3 ] ] }
+</pre></nowiki>
+
+<hr>
+<h3>Constructor</h3>
+
+When a new database connection is created using <b>"new"</b>
+
+    <nowiki><pre class=verbatim>
+  var db  = new Sqlite('testsql.db');
+  var db2 = new Sqlite('testsql.db',{maxStmts:1000, readonly:true});
+</pre></nowiki>
+
+the second optional argument can be used to specify configuration options.
+These options are per-connection.
+
+Some options can be changed with the <b>"conf()"</b> method.
+
+    <nowiki><pre class=verbatim>
+  db.conf({maxStmts:100});
+</pre></nowiki>
+
+<hr>
+<h3>Other Query Methods</h3>
+
+The driver provides two additional query methods: <b>onecolumn</b>, and <b>evaluate</b>.
+
+<h4>evaluate(querys)</h4>
+
+<i>evaluate()</i> executes multiple semicolon separated statements.
+Variable binding is <b>not</b> performed, and no results are returned.
+
+<h4>onecolumn(query)</h4>
+
+<i>onecoloumn()</i> performs variable binding like exec.  Only the first column
+of the first result is returned.  The output mode is ignored.
+<hr>
+<h3>User Defined SQL Functions</h3>
+
+SQL functions can be defined in javascript:
+<nowiki><pre class=verbatim>
+  db.func('bar',function(n) { return n+'.000'; });
+  puts(db.onecolumn('select bar(a) from foo where b == 2;'));
+</pre></nowiki>
+<hr>
+<h3>Caching</h3>
+
+By default compiled queries are cached internally (per connection).
+This can greatly reduce the overhead of frequently submitted queries. 
+
+The size of the cache can be controlled via the connection option <b>"maxStmts"</b>.
+
+Caching can be disabled for specific queries via the exec option <b>"nocache"</b>,
+or connection-global using <b>"execOpts"</b>.
+<hr>
+<h3>Differences From the Tcl Driver</h3>
+
+The driver is mostly a superset of the Tcl Sqlite driver (with some features of
+the sqlite3 command-line utility thrown in).
+
+Aside from the fact that it uses
+javascript rather than tcl, the differences in the driver are:
+
+  #  exec() supports output options like modes/headers/separators (ie. like sqlite3.exe).
+  #  the number of output modes has been expanded.
+  #  a constructor provided <b>"execOpts"</b> allows changing defaults for <i>exec()</i>.
+  #  support for direct output to JSON make web support highly efficient.
+  #  adds the method evaluate() to support multiple, semicolon separated statements.
+  #  <b>"copy"</b> is renamed to <b>"import"</b>, handles csv, and arguments are changed to options.
+

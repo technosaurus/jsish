@@ -1,0 +1,37 @@
+<title>Editors</title>
+
+<h4>Geany</h4>
+
+[http://www.geany.org|Geany] is a convenient editor to use with Jsish.
+To enable file completion in Geany, copy <i>tools/geany/filetypes.javascript</i> to
+~/.config/geany/filedefs/.  Then edit <i>/usr/share/geany/filetype_extensions.conf</i> and
+add "*.jsi" to Javascript. 
+Finally, keep the file <i>tools/protos.jsi</i> open in the editor so Geany knows
+how to complete Jsi functions.
+
+Geany can be setup to navigate
+through Jsi's gcc style scripting errors:
+
+  *  Start by editing any file ending in the suffix .jsi.
+  *  From the Geany <b>Build</b> menu, select <b>Set Build Commands</b>.
+  *  Click on the first blank label in Javascript and enter <i>Jsish</i>.
+  *  In the command section enter the pathspec to jsish, eg. <i>$HOME/bin/jsish %f</i>
+  *  Click <b>Ok</b>
+  
+Now hit <b>F8</b> to run the script. Upon errors, you should be able to navigate to the
+highlighted lines, and see warnings in the bottom pane.
+
+
+<h4>Vim</h4>
+Here is how to setup vim:
+
+    <nowiki><pre class=verbatim>
+:set makeprg=jsish\ %
+:copen
+</pre></nowiki>
+
+Then to run scripts just use:
+
+    <nowiki><pre class=verbatim>
+:make
+</pre></nowiki>

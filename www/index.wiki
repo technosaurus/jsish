@@ -1,0 +1,36 @@
+<title>Home</title>
+
+<p align="center">
+<font size="3">
+<i>Jsi: Embeddable Javascript</i>
+</font>
+</p>
+[http://pdqi.com/jsi|Jsi] is a small javascript interpreter implemented in <b>C</b> that
+provides built-in support for [./js-sqlite.wiki|Sqlite], [./js-websocket.wiki|WebSockets],
+[./js-json.wiki|JSON] and a [./js-zvfs.wiki|Zip filesystem].
+It is used for creating [./zeroinstall.wiki|standalone] desktop web-database applications
+or for embedding in other applications.
+
+  *  [./getstarted.wiki|Jsi In 5 Minutes or Less]
+  *  [./reference.wiki|Language Reference]
+  *  [./jsindex.wiki|Topic Index]
+
+<h4>Example Applications</h4>
+
+The Jsi distribution comes with several demo applications designed to
+showcase it's power and functionality:
+
+  *  [app/sqliteui.wiki|SqliteUI]: a user interface to Sqlite. 
+  *  [app/ledgerjs.wiki|LedgerJS]: an accounting program.
+
+<h4>Rationale</h4>
+
+For desktop web-application development, there many alternatives
+but none of these
+deliver the range of functionality in Jsi, with anything approching it's small form-factor.
+
+For a description of the rationale
+behind Jsi, including comparisons against alternatives such as
+NodeJs, Lua, Tcl and LAMP (Linux/Apache/MySql/PHP),
+[./rationale.wiki|click here].
+

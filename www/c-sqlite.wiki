@@ -1,0 +1,554 @@
+<title>C-API: Sqlite</title>
+
+<h2>1.0 Introduction</h2>
+
+Jsi provides database access abstraction for <b>C</b> programs that
+increases integrity and reduces complexity.
+
+<h2>2.0 Overview</h2>
+
+Assume we have the struct:
+    
+    <nowiki><pre class=verbatim>
+typedef struct {
+    char name[16];
+    int id;
+    double max;
+    int64 myTime;
+    int mark;
+    int markSet;
+    Jsi_DString desc;
+    int64 rowid;
+    char dirty;
+} MyData;
+</pre></nowiki>
+
+Also a corresponding database-table for loading/storing:
+
+    <nowiki><pre class=verbatim>
+CREATE TABLE mytable (name, id INT, desc, max FLOAT, myTime INT, mark, markSet);
+</pre></nowiki>
+
+We create a [./c-options.wiki|Jsi_OptionSpec] descriptor array:
+
+    <nowiki><pre class=verbatim>
+static const char *markStrs[] = {"","A","B","C","D","F",NULL};
+
+static Jsi_OptionSpec MyOptions[] = {
+    JSI_OPT(STRBUF,     MyData, name,   .help="Fixed size char buf" ),
+    JSI_OPT(INT,        MyData, id,     .help="Int id"),
+    JSI_OPT(DOUBLE,     MyData, max,    .help="Max value"),
+    JSI_OPT(DATETIME,   MyData, myTime, .help="A unix/javascript time field in milliseconds (64 bits)" ),
+    JSI_OPT(CUSTOM,     MyData, mark,   .help="Current mark", .custom=Jsi_Opt_SwitchEnum,   .data=markStrs ),
+    JSI_OPT(CUSTOM,     MyData, markSet,.help="Set of marks", .custom=Jsi_Opt_SwitchBitset, .data=markStrs ),
+    JSI_OPT(DSTRING,    MyData, desc,   .help="Description field: string of arbitrary length"),
+    JSI_OPT(WIDE,       MyData, rowid,  .help="DB rowid: update/insert does not store to db"),
+    JSI_OPT(BOOL,       MyData, isdirty,.help="Dirty flag: not stored in db", .flags=JSI_OPT_DB_DIRTY),
+    JSI_OPT_END(        MyData)
+};
+</pre></nowiki>
+
+Data can be stored and accessed thus:
+
+    <nowiki><pre class=verbatim>
+MyData d = {"myname", 99, 9.0};
+Jsi_Db *jdb = Jsi_DbNew("~/mytables.db", 0);
+Jsi_DbQuery(jdb, MyOptions, &d, 1, "INSERT INTO mytable %s", 0);
+Jsi_DbQuery(jdb, MyOptions, &d, 1, "SELECT %s FROM mytable", 0);
+Jsi_DbQuery(jdb, MyOptions, &d, 1, "UPDATE mytable SET %s", 0);
+Jsi_DbQuery(jdb, MyOptions, &d, 1, "SELECT id,name FROM mytable WHERE rowid=:rowid", 0);
+</pre></nowiki>
+
+In the above, the <b>Jsi_DbQuery()</b> function binds the values, executes the query, and (for <b>select</b>) stores 
+results into the struct where:
+
+  *  The <b>%s</b> automatically expands into a binding list.
+  *  The <b>query</b> begins with one of: <b>SELECT, INSERT, UPDATE, REPLACE, DELETE </b> (case insensitive).
+
+In practice, use of a wrapper function will improve readability and type checking:
+
+    <nowiki><pre class=verbatim>
+Jsi_Db *jdbPtr = Jsi_DbNew(NULL,0);
+
+int QueryMyData(MyData *data, const char *query) {
+    return Jsi_DbQuery(jdbPtr, MyOptions, data, 1, query, 0);
+}
+
+QueryMyData(&d, "INSERT INTO mytable %s")
+QueryMyData(&d, "UPDATE mytable SET %s")
+</pre></nowiki>
+
+
+<h2>3.0 Examples</h2>
+
+<i>NOTE: full demo source for what following is here: [../c-demos/dbdemo.c].</i>
+
+<h3>3.1 Struct Data</h3>
+
+First, we push 10 values into the table:
+
+    <nowiki><pre class=verbatim>
+MyData mydata = {.id=99, .max=100.0, .mark=MARK_A, .markSet=6};
+mydata.myTime = time(NULL)*1000LL;
+strcpy(mydata.name,"maryjane");
+Jsi_DSSet(&mydata.desc, "Some stuff");
+
+sqlite3 *db = Jsi_DbHandle(interp, jdb);
+sqlite3_exec(db, "BEGIN", 0, 0, 0);
+for (i=0; i<10; i++) {
+    mydata.id++;
+    mydata.max--;
+    n = Jsi_DbQuery(jdb, MyOptions, &mydata, 1, "INSERT INTO mytable %s", 0);
+}
+sqlite3_exec(db, "COMMIT", 0, 0, 0);
+</pre></nowiki>
+
+Normally the returned value is the number of rows loaded, modified or stored.
+But if an error occurrs, -1 is returned.
+
+Note the use of <b>"%s"</b>, which expands to all of the columns in the table.
+
+Next use <b>MyOptions</b> again, but this time with a second variable <b>mydata2</b>:
+
+    <nowiki><pre class=verbatim>
+/* Read the last inserted row into mydata2. */
+MyData mydata2 = {};
+mydata2.rowid = mydata.rowid;
+n = Jsi_DbQuery(jdb, MyOptions, &mydata2, 1, "SELECT id,name FROM mytable WHERE rowid=:rowid", 0);
+n = Jsi_DbQuery(jdb, MyOptions, &mydata2, 1, "SELECT %s FROM mytable WHERE rowid=:rowid", 0);
+
+/* Modify all fields of last inserted row. */
+mydata.max = -1;
+mydata.myTime = Jsi_DateTime();
+strcpy(mydata.name, "billybob");
+n = Jsi_DbQuery(jdb, MyOptions, &mydata, 1, "UPDATE mytable SET %s WHERE id=:id", 0);
+
+/* Modify specific columns for half of inserted rows. */
+mydata.id = 105;
+n = Jsi_DbQuery(jdb, MyOptions, &mydata, 1, "UPDATE mytable SET name=:name, max=:max WHERE id<:id", 0);
+
+/* Delete item id 105. */
+n = Jsi_DbQuery(jdb, MyOptions, &mydata, 1, "DELETE FROM mytable WHERE id=:id", 0);
+</pre></nowiki>
+
+By avoiding <b>"?1"</b>, <b>"?2"</b>, etc, queries are more natural and immune to mistakes.
+
+<h3>3.2 Arrays <i>(static)</i></h3>
+
+We can also use an array to store/load multiple structs at a time:
+
+    <nowiki><pre class=verbatim>
+int num = 10;
+MyData mydatas[10] = {};
+int cnt = Jsi_DbQuery(jdb, MyOptions, mydatas, num, "SELECT %s FROM mytable", 0);
+
+for (i=0; i<cnt; i++)
+    mydatas[i].id += i;
+n = Jsi_DbQuery(jdb, MyOptions, mydatas, cnt, "UPDATE mytable SET %s WHERE rowid = :rowid", 0);
+</pre></nowiki>
+
+The SELECT places up to 10 rows into the array.  The UPDATE
+iteratively stores the modifications.
+
+
+<h3>3.3 Arrays <i>(semi-dynamic)</i></h3>
+
+If desired, we can defer allocating array elements using
+the <b>JSI_DB_PTRS</b> flag; This will dynamically allocate struct slots, on-demand:
+
+    <nowiki><pre class=verbatim>
+num = 3;
+static MyData *mdPtr[3] = {};
+n = Jsi_DbQuery(jdb, MyOptions, mdPtr, num, "SELECT %s FROM mytable", JSI_DB_PTRS);
+printf("%f\n", mdPtr[0]->max);
+</pre></nowiki>
+
+Note that the data argument is now an array of pointers to structs (or <b>void **</b>).
+
+This advantage of this mode is memory gets allocated only as required.
+The downside that the maximum size of the table must be known, beforehand.
+
+
+<h3>3.4 Arrays <i>(fully-dynamic)</i></h3>
+
+The most flexible (and of course, most expensive) mode is <b>JSI_DB_PTR_PTRS</b> which
+provides fully dynamic allocation of both the array and the struct values.
+
+    <nowiki><pre class=verbatim>
+MyData **dynPtr = NULL;
+n = Jsi_DbQuery(jdb, MyOptions, &dynPtr, 0, "SELECT %s FROM mytable WHERE rowid < 5", JSI_DB_PTR_PTRS);
+n = Jsi_DbQuery(jdb, MyOptions, &dynPtr, n, "SELECT %s FROM mytable LIMIT 1000", JSI_DB_PTR_PTRS);
+printf("%f\n", dynPtr[0]->max);
+n = Jsi_DbQuery(jdb, MyOptions, &dynPtr, n, "", JSI_DB_PTR_PTRS|JSI_DB_MEMFREE);
+</pre></nowiki>
+
+The data argument is now a pointer to an array of pointers (or <b>void***</b>).
+
+Note: in this mode an extra NULL pointer will be maintained at the end of the array
+to make the current length detectable
+(the <b>num</b> parameter is 0). 
+
+
+<h3>3.5 Function Wrappers</h3>
+
+The <b>Jsi_DbQuery()</b> function
+binds, executes and retrieves results for a query.
+
+    <nowiki><pre class=verbatim>
+int Jsi_DbQuery(Jsi_Db *jdb, Jsi_OptionSpec *spec, void *data, int numData, const char *query, int flags);
+</pre></nowiki>
+
+Note that in calls to <b>Jsi_DbQuery</b>, the <b>data</b> argument type depends not only on the struct,
+but also on the value of <i>flags</i>.
+
+But the type of the <b>data</b> parameter is <b>void*</b>, so the compiler provides no real
+type checking anyways:
+
+    <nowiki><pre class=verbatim>
+Jsi_DbQuery(jdb, MyOptions, "a bad struct", n, "SELECT %s FROM mytable", 0);  // Error, but compiler does not complain!
+</pre></nowiki>
+
+We can remedy this potentially dangerous situation via implementation-specific function-wrappers: 
+
+    <nowiki><pre class=verbatim>
+int QueryMyStat(MyData *data, int num, const char *query, int flags) {
+    return Jsi_DbQuery(jdbPtr, MyOptions, data, num, query, flags);
+}
+
+int QueryMySemi(MyData **data, int num, const char *query, int flags) {
+    return Jsi_DbQuery(jdbPtr, MyOptions, data, 0, query, JSI_DB_PTR|flags);
+}
+
+int QueryMyDyn(MyData ***data, int num, const char *query, int flags) {
+    return Jsi_DbQuery(jdbPtr, MyOptions, data, 0, query, JSI_DB_PTR_PTRS|flags);
+}
+
+QueryMyStat(mydatas, n, "SELECT %s FROM mytable;", 0);
+QueryMySemi(mdPtr,   n, "SELECT %s FROM mytable;", 0);
+QueryMyDyn (&dynPtr, n, "SELECT %s FROM mytable;", 0);
+</pre></nowiki>
+
+This not only yields appropriate type checking, but invocations require fewer arguments.
+
+<h3>3.5 Multiple Structs</h3>
+
+Normally a bind will occur for each row in an array traversed by a query.
+But there is a way to use additional structs that are bound once:
+
+    <nowiki><pre class=verbatim>
+int QueryMyBind(MyData *data, int num, MyData *data2, const char *query)
+{
+    Jsi_DbMultipleBind binds[] = {
+        { ':', MyOptions, data, num }, // Output/input data array
+        { '$', MyOptions, data2, 1 },  // Input single struct.
+        {}
+    };
+    
+    // Pass option as NULL and binds as data.
+    n = Jsi_DbQuery(jdb, NULL, binds, 0, query, JSI_DB_PTRS);
+}
+
+mydata.max = -1;
+n = QueryMyBind(mdPtr, num, mydata, "SELECT %s FROM mytable WHERE rowid=:rowid AND max=$max");
+</pre></nowiki>
+
+This binds <b>:rowid</b> to each row in the array <i>mdPtr</i>, but binds <b>$max</b> to
+<i>mydata</i> only once.
+
+This is not only more efficient, but it avoids the
+problem where SELECT modifies a value that is being used as input.
+
+<h3>3.6 Dirty Bit</h3>
+
+We can limit rows stored by setting a dirty bit
+and using the <b>JSI_DB_DIRTY_ONLY</b> flag:
+
+    <nowiki><pre class=verbatim>
+for (i=1; i<=3; i++) {
+    mydatas[i].isdirty = 1;
+    mydatas[i].id += 100*i;
+}
+n = QueryMyStat(mydatas, cnt, "UPDATE mytable SET %s WHERE rowid = :rowid", JSI_DB_DIRTY_ONLY);
+</pre></nowiki>
+
+Which is substantially faster than updating every row in the table.
+
+A dirty bit is any BOOL or INT field that explictly sets the JSI_OPT_DIRTY_FIELD flag.
+
+<b>Note:</b> dirty bits are be cleared, if there is no error.
+
+<h2>4.0 Field Types</h2>
+
+<h3>4.1 Supported Types</h3>
+
+The supported option TYPEs are:
+
+    <p><nowiki>
+<table border='1' class='cmdstbl' ><tr ><th  >Name</th><th  >Description</th></tr>
+<tr ><td >BOOL</td><td >Boolean (uses a "char" variable).</td></tr>
+<tr ><td >INT</td><td >An integer.</td></tr>
+<tr ><td >WIDE</td><td >A 64-bit integer (Jsi_Wide).</td></tr>
+<tr ><td >DOUBLE</td><td >Double floating point.</td></tr>
+<tr ><td >DSTRING</td><td >A Jsi_DString value.</td></tr>
+<tr ><td >STRKEY</td><td >A char* string key.</td></tr>
+<tr ><td >STRBUF</td><td >A fixed size char string buffer.</td></tr>
+<tr ><td >STRING</td><td >A Jsi_Value referring to a string (when not using JSI_LITE_ONLY)</td></tr>
+<tr ><td >VALUE</td><td >A Jsi_Value.</td></tr>
+<tr ><td >DATETIME</td><td >A date variable, milliseconds since 1970 stored in a 64 bit integer.</td></tr>
+<tr ><td >CUSTOM</td><td >Custom parsed value.</td></tr>
+</table></nowiki>
+
+
+<h3>4.2 Enums</h3>
+
+It is common database practice to store enum values in one table that uses a foreign key to reference
+values in another table.  Although this has advantages, it adds complexity to the schema
+and processing overhead ensues from from joins, views and sub-selects.
+
+Alternatively we can store the value as a string, and when reading it back convert
+it to an enum; this requires added C to do the conversion in our query code.
+
+Now consider the <b>marks</b> field from above:
+
+    <nowiki><pre class=verbatim>
+typedef enum { MARK_NONE, MARK_A, MARK_B, MARK_C, MARK_D, MARK_F } MarkType;
+...
+static const char *markStrs[] = {"","A","B","C","D","F", NULL};
+...
+    JSI_OPT(CUSTOM,     MyData, mark,   .help="Marks", .custom=Jsi_Opt_SwitchEnum, .data=markStrs ),
+...
+</pre></nowiki>
+
+The definition ensures that the <i>marks</i> value is stored as integer in memory, and as string
+in the database:  No manual conversion is required.
+
+Note: the <b>JSI_OPT_NOCASE</b> flag can be used with this option.
+
+<h3>4.3 Bit Access</h3>
+
+In C, bit-fields are king.  They provide maximum information, with minimal overhead.
+
+The Jsi_Opt_SwitchBitset option lets you access multiple bits in one integer field.
+This works similar to the above enum, except that the C stored values are bit sets:
+
+    <nowiki><pre class=verbatim>
+JSI_OPT(CUSTOM,     MyData, markSet,   .help="Marks set", .custom=Jsi_Opt_SwitchBitset, .data=markStrs ),
+</pre></nowiki>
+
+But the database they are stored as a list of string attributes:
+
+    <nowiki><pre class=verbatim>
+# select markSet from mytable;
+"A B"
+"B C D"
+</pre></nowiki>
+
+Like enum, Jsi automatically provides translation to/from strings.
+It is interesting to note that this form of multiple symbolic lookup
+is not so easily reproduced with a database (ie. with a foreign key).
+
+Note: the <b>JSI_OPT_NOCASE</b> flag can be used with this option.
+
+<h2>5.0 Field/Column Mapping</h2>
+
+The <b>.extName</b> field is used to map a C field name to a different database column name:
+
+   <nowiki><pre class=verbatim>
+    JSI_OPT(STRBUF,     MyData, name,   .extName="struct" ),
+</pre></nowiki>
+
+ie. in this example, "struct" is a reserved word in C.
+
+<h2>6.0 NULL Values</h2>
+
+For SELECT, the following Sqlite C-api rules apply for NULL sqlite_column values:
+
+  *  INT and DOUBLE: the value "0"
+  *  DSTRING and STRBUF: an empty string.
+  *  STRKEY: a NULL pointer.
+  *  STRING: a NULL pointer (when not using JSI_LITE_ONLY).
+
+<h2>7.0 Javascript</h2>
+
+<h3>7.1 CData</h3>
+
+The following C-code makes <b>mdPtr</b> available as "mydata",
+making the C data available to the Javascript <i>info.cdata()</i> command.
+
+    <nowiki><pre class=verbatim>
+Jsi_CDataRegister(interp, "mydata", MyOptions, mdPtr, num, JSI_DB_PTRS);
+</pre></nowiki>
+
+We can then access the data array from javascript:
+
+    <nowiki><pre class=verbatim>
+puts(cdata.get('mydata',0,'max')); 
+cdata.set('mydata',0,{'max':99});
+</pre></nowiki>
+
+<h3>7.2 Initialization</h3>
+If we use Javascript for initialization, access so that the entire
+[./js-sqlite.wiki|Javascript Sqlite API] available:
+For database access, for configuration and for debugging.
+
+    <nowiki><pre class=verbatim>
+if (JSI_OK != Jsi_EvalString(interp, "var mydb = new Sqlite('~/mytest.db');", 0))
+    return JSI_ERROR;
+Jsi_Db *jdb = Jsi_UserObjDataFromVar(interp, "mydb");
+if (!jdb)
+    return JSI_ERROR;
+sqlite3 *db = Jsi_DbHandle(interp, jdb);
+
+sqlite3_exec(db, "DROP TABLE IF EXISTS mytable;", 0, 0, 0);
+sqlite3_exec(db, "CREATE TABLE mytable (max FLOAT, name, desc, id INT, myTime INT, mark INT, markSet INT);", 0, 0, 0);
+int i, n, res = JSI_OK;
+</pre></nowiki>
+
+<h3>7.3 CData Queries</h3>
+
+Queries can make use this load/store via the <b>cdata</b> option:
+
+    <nowiki><pre class=verbatim>
+db = new Sqlite('~/mytable.db');
+
+size = db.exec('SELECT %s FROM mytable', {cdata:'mydata'});
+for (i = 0; i<size; i++) {
+    max = cdata.get('mydata', i, 'max');
+    max += i*100;
+    cdata.set('mydata', i, {'max':max});
+}
+db.exec('UPDATE %s FROM mytable', {cdata:'mydata'});
+
+puts(cdata.get('mydata', 0));
+cdata.size('mydata');      // Get array allocated size.
+cdata.info('mydata');      // Struct info
+</pre></nowiki>
+
+<h3>7.4 Schemas</h3>
+
+The <b>cdata.schema()</b> command returns a schema that is compatible
+with a data definition:
+
+    <nowiki><pre class=verbatim>
+db.exec("CREATE TABLE newtable("+cdata.schema('mydata')+")";
+db.exec('INSERT %s INTO newtable', {cdata:'mydata'});
+</pre></nowiki>
+
+
+<h3>7.5 Other Javascript</h3>
+
+All javascript commands and options in the
+[./reference.wiki#Sqlite|Sqlite Reference] are available.
+For example, we can increase the query cache from the default of 100
+up to 10,000 with:
+
+      <nowiki><pre class=verbatim>
+var mydb = Sqlite('my.db', {maxStmts:10000});
+// or dynamically ...
+mydb.conf({maxStmts:10000});
+</pre></nowiki>
+
+
+<h2>8.0 Efficiency</h2>
+
+Jsi_DbQuery prefers stack over heap memory as much as possible.
+Typically, heap is allocated only when:
+
+  #  JSI_DString strings exceed 200 bytes.
+  #  Query strings exceed 2048 bytes (including generated argument lists).
+  #  The cache manager adds a new query.
+  #  The JSI_DB_PTR* flags is used (initial allocation only).
+  #  Sqlite internally requires it.
+
+Performance should be similar to hand generated C-code.
+There is some overhead from using the sqlite3_bind_parameter_name() call,
+and some from the string concatenation in binding list creation.
+But the avoidance of heap allocation, coupled with caching queries,
+result in impressive performance.
+
+Following is output from the simple benchmark included in the <b>dbdemo</b> program:
+
+    <nowiki><pre class=verbatim>
+user@host:~/src/jsi/jsi/c-demos$ ./dbdemo -benchmark
+-1.000000
+TESTING 1000000 ROWS
+INIT C:    0.198 secs
+   6.704 sec,   149164 rows/sec    INSERT 1000000 ROWS
+   2.883 sec,   346860 rows/sec    SELECT 1000000 ROWS 
+  10.029 sec,    99710 rows/sec    UPDATE 1000000 ROWS, 1 FIELD
+  10.754 sec,    92988 rows/sec    UPDATE 1000000 ROWS, ALL FIELDS
+   4.381 sec,    22825 rows/sec    UPDATE 100000 DIRTY ROWS
+   1.412 sec,      708 rows/sec    UPDATE 1000 DIRTY ROWS
+   0.272 sec,       36 rows/sec    UPDATE 10 DIRTY ROWS
+</pre></nowiki>
+
+This last 3 items demonstrate update of dirty rows: every 10th, 1,000th, and 100,000 respectively. 
+
+
+<h2>9.0 Database Contents</h2>
+
+At the conclusion of the demo programs execution, the database should contain:
+
+    <nowiki><pre class=verbatim>
+sqlite> select rowid,* from mytable;
+rowid|max|name|desc|id|myTime|mark|markSet
+1|-1.0|billybob|Some stuff|100|1445209965000|A|A B
+2|-1.0|billybob|Some stuff|202|1445209965000|A|A B
+3|-1.0|billybob|Some stuff|304|1445209965000|A|A B
+4|-1.0|billybob|Some stuff|406|1445209965000|A|A B
+5|-1.0|billybob|Some stuff|108|1445209965000|A|A B
+7|93.0|maryjane|Some stuff|111|1445209965000|A|A B
+8|92.0|maryjane|Some stuff|113|1445209965000|A|A B
+9|91.0|maryjane|Some stuff|115|1445209965000|A|A B
+10|-1.0|billybob|Some stuff|117|1445209966656|A|A B
+</pre></nowiki>
+
+
+<h2>1.0 Summary</h2>
+
+<h3>1.1 The Problem</h3>
+
+To use a Sqlite database, a C-application must move data to and from
+main-memory using the C-API.
+But this presents challenges:
+
+  *  Outputs via <b>sqlite3_bind_*()</b> are easily mis-numbered. 
+  *  Inputs via <b>sqlite3_column_*()</b> are easily mis-numbered. 
+  *  Manual management of data types can be error prone.
+  *  The application code-base can quickly grow cumbersomely large.
+
+The problem is illustrated below:
+
+    <nowiki><pre class=verbatim>
+stmt = sqlite3_prepare(db, "SELECT a,b FROM mytbl WHERE a=?1 AND b=?2", ...)
+sqlite_bind_int(stmt, 1, data.b);  // Error: output to wrong field.
+...
+sqlite3_step(stmt);
+data.a = sqlite3_column_int(stmt, 2); // Error: input from wrong field.
+</pre></nowiki>
+
+In the above, there is no easy way to enforce that bind/column statements get assigned the correct values.
+
+In addition, the data-types may not align: while we may be asking for an <b>int</b> field, this could
+very well be a TEXT column storing the value "Bob".  
+
+<h3>1.2 The Solution</h3>
+
+Jsi provides a simplified C-API that
+transfers data between [./js-sqlite.wiki|Sqlite] and [./c-options.wiki|C structs],
+with the following features:
+
+  *  Individual binds use the struct field name.
+  *  Bind lists are auto-generated (ie. %s).
+  *  Arrays of structs are supported.
+  *  Simple one-to-one mapping enforcement (ie. <i>rowid</i> field).
+  *  Selective row updating (<i>dirty-bit</i> field).
+  *  Fast execution (compiled statement cache).
+  *  Minimal malloc's, in common usage.
+  *  Support for scripted data access (optional).
+
+The two main issues being dealt with are <b>integrity</b> and <b>complexity</b>.
+
+Integrity is maintained by ensuring that inputs and outputs always map to the correct fields.
+Complexity is contained by reducing code size by one or two orders of magnitude.
+

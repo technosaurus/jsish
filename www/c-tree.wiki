@@ -1,0 +1,9 @@
+<title>C-API: Trees</title>
+
+The underlying data structure of objects in JSI is a tree Red-Black trees with invariant node
+pointers: nodes are allocated using a single malloc, including space for the key.
+This introduces a problem in that varying string keys can not be copied between nodes,
+which is required when rebalancing the tree. Although tree supports swapping node positions
+instead of keys, objects instead use a key of type STRINGPTR, a combination Hash table and and Tree,
+which is fairly efficient because objects often share keys.
+

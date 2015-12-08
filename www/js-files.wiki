@@ -1,0 +1,97 @@
+<title>Files</title>
+There are 2 ways to access files in JSI:
+File object for IO to a single file, and
+file.* commands for general file access.
+
+<h4>new File</h4>
+A File object can be created for reading and/or writing individual files. 
+Generally an object is instantiated to open the file and then read/write operations are performed.
+
+    <nowiki><pre class=verbatim>
+var f = new File('tests/filetest.txt');
+if (f) {
+    while((n = f.gets())!=undefined) {
+        puts(n);
+    }
+} else console.log('Can not open tests/filetest.txt');
+</pre></nowiki>
+
+<h4>File</h4>
+
+Synopsis: new File(file,?mode?)
+Commands for accessing File objects.
+Methods
+
+The following methods are available in "File":
+
+    <nowiki>
+<table border='1' class='cmdstbl'><tr ><th>Method</th><th>Description</th></tr>
+<tr><td>close()</td><td >close the file</td></tr>
+<tr><td>eof()</td><td >Return true if read to end-of-file</td></tr>
+<tr><td>filename()</td><td >Get file name</td></tr>
+<tr><td>gets()</td><td >Get one line of input</td></tr>
+<tr><td>mode()</td><td >Get file mode used with open</td></tr>
+<tr><td>open(file,?mode?)</td><td >Open the file (after close)</td></tr>
+<tr><td>puts(str)</td><td >Write one line of output</td></tr>
+<tr><td>read()</td><td >Read entire file into object</td></tr>
+</table></nowiki>
+
+<h4>file.*</h4>
+
+The file sub-methods are used for accessing various attributes and information on files where just basic IO is not necessarily the goal.
+
+    <nowiki><pre class=verbatim>
+file.mkdir('XX1');
+file.mkdir('XX1/AA');
+file.mkdir('XX1/BB');
+file.rename('XX1/BB','XX1/CC.txt');
+puts(file.glob(null,'XX1').sort());
+puts(file.dirname('XX1/AA'));
+puts(file.rootname('XX1/CC.txt'));
+puts(file.tail('XX1/CC.txt'));
+puts(file.type('XX1/CC.txt'));
+puts(file.extension('XX1/CC.txt'));
+//puts(file.realpath('XX1/CC.txt'));
+puts(file.writable('XX1/CC.txt'));
+puts(file.readable('XX1/CC.txt'));
+puts(file.exists('XX1/CC.txt'));
+puts(file.isdir('XX1/CC.txt'));
+puts(file.isfile('XX1/CC.txt'));
+file.remove('XX1',true);
+</pre></nowiki>
+
+Output is:
+
+    <nowiki><pre class=verbatim>
+[ "AA", "CC.txt" ]
+XX1
+XX1/CC
+CC.txt
+directory
+.txt
+true
+true
+true
+true
+false
+file
+</pre></nowiki>
+
+
+<h4>File.glob</h4>
+
+The file glob method returns an array of matching files.
+With no arguments (or null) returns all files/directories in current directory.
+If first argument is a pattern (either a glob or regexp) just files are returned.
+If second argument is a string, it denotes the directory to search in.
+If second argument is a function, this function is called with each path.
+Otherwise second argument is a set of options.
+
+    <nowiki><pre class=verbatim>
+file.glob();
+file.glob("*.c");
+file.glob(/^jsi.*\.c$/);
+file.glob('*','tests');
+file.glob('*.js',{dir:'tests', recurse:true});
+</pre></nowiki>
+

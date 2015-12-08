@@ -1,0 +1,20 @@
+<title>include</title>
+Jsi allows including files of javascript inline, eg.
+
+    <pre class=verbatim>
+var x = 1;
+include('dir/foo.js');
+foo(x);
+</pre>
+
+During the evaluation of the include, the current include directory is temporarily changed to that 
+of the include files path. The include file may also include other files, up to a  
+maximum of 100 (configurable).
+
+Include may also be given an array of files, as in:
+
+    <nowiki><pre class=verbatim>
+include(['foo.js','bar.js']);
+</nowiki></pre>
+
+NOTE: An optional second argument is ignored as reserved for possible future options.

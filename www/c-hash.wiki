@@ -1,0 +1,21 @@
+<title>C-API: Hashes</title>
+This pages describes how to use Jsi_Hash.
+Search for Jsi_Hash in [../jsi.h#Jsi_Hash|jsi.h] for details.
+
+Hash provides simple hash table functionality.
+
+    <nowiki><pre class=verbatim>
+int isNew;
+Jsi_Hash *tbl = Jsi_HashNew(interp, JSI_KEYS_STRING, NULL);
+hPtr = Jsi_HashEntryCreate(tbl, "foo", &isNew);
+Jsi_HashEntrySet(hPtr, 99);
+Jsi_HashSet(tbl, "bar", 100);
+Jsi_HashSearch search;
+for (hPtr = Jsi_HashEntryFirst(tbl, &search);
+    hPtr != NULL; hPtr = Jsi_HashEntryNext(&search)) {
+    key = Jsi_HashKeyGet(hPtr);
+    int n = Jsi_HashValueGet(hPtr);
+}
+</pre></nowiki>
+
+There are plenty of examples Hash usage in the Jsi source code.

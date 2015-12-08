@@ -1,0 +1,175 @@
+<title>Interp</title>
+[./reference.wiki#Interp|&lt;Interp Reference&gt;]
+
+Jsi uses and Interp to encapsulate the state of the interpreter.
+This also provides configuration options that can be set via <i>Interp.conf()</i>.
+A toplevel Interp is created automatically at startup.
+
+<a name=subinterp>
+<h4>Sub-interps</h4>
+
+A sub-interp can be created to run scripts in a separate, protected environment, eg.
+
+    <nowiki><pre class=verbatim>
+var interp1 = new Interp();
+interp1.eval('puts("HI");');
+delete interp1;
+</pre></nowiki>
+
+Of course, any variables and functions created in a sub-interp are private to it
+and are cleaned up upon the interps deletion.
+
+<h4>Safe Interps</h4>
+
+If a sub-interp is created with the safe option, file access will be disabled:
+
+    <nowiki><pre class=verbatim>
+var interp1 = new Interp({isSafe:true});
+</pre></nowiki>
+
+<h4>Threads</h4>
+
+To create a threaded interp is as simple as:
+
+    <nowiki><pre class=verbatim>
+var interp1 = new Interp({subthread:true, scriptFile:'mythrd.js'});
+</pre></nowiki>
+
+If a script file or string option is not given, the thread will sit waiting for events.
+
+<h4>Events</h4>
+
+Events in javascript are traditionally create by the standard setTimeout()/setInterval() methods. 
+To process events sys.update() needs to be called. See [./js-events|events] for more details.
+
+<h4>Eval/Call/Send</h4>
+
+There are 3 basic ways to invoke code in a sub-interp. The first which just uses eval() 
+is the least efficient as it involves parsing overhead prior to evaluation. 
+If a second async argument true is given to a threaded interp, the execution proceeds
+in the background. Otherwise, a value is returned.
+
+    <nowiki><pre class=verbatim>
+var cnt=0, i = new Interp({subthread:true});
+while (cnt<10) {
+  puts("Main-loop");
+  if (cnt++%2)
+      i.eval("puts('Hello from main!!!!!!!!!!!!!!!!!!!!!!!!');");
+  sys.update(100);
+}
+</pre></nowiki>
+
+The second method uses call() to invoke already defined methods in the interp. 
+This is much more efficient as no parsing is involved. It also takes an async argument.
+
+    <nowiki><pre class=verbatim>
+var cmd = "
+    function recv2(s) { puts('recv2: '+s.toString()); return {x:8, y:9}; };
+    thrd = info.interp().thread;
+    puts(thrd);
+    puts('Child starting: '+(thrd?'true':'false'));
+    while (thrd) {
+        sys.update(1000);
+        puts('Child-loop');
+    };
+";
+
+var cnt=0, i = new Interp({subthread:true, scriptStr:cmd});
+
+sys.sleep(1000);
+var obj = {AA:1,BB:2};
+var aobj = [obj];
+var ret;
+while (cnt<10) {
+  sys.update(100);
+  puts("Main-loop");
+  if (((cnt++)%3)==0)
+      i.eval("puts('Hello from main!!!!!!!!!!!!!!!!!!!!!!!!');");
+  ret = i.call('recv2',aobj);
+  puts(ret);
+}
+</pre></nowiki>
+
+The last way involves using send() to pass messages to the recvCmd option to the interp. 
+This function, which simply receives an array of all outstanding messages, is always asyncronous. 
+It is also the most efficient since messages can be batched up.
+
+    <nowiki><pre class=verbatim>
+var cmd = "
+    function recv(s) { puts('recv: '+s.toString()); };
+    thrd = info.interp().thread;
+    puts(thrd);
+    puts('Child starting: '+(thrd?'true':'false'));
+    while (thrd) {
+        sys.update(500);
+        puts('Child-loop');
+        Interp.send({abc:1});
+    };
+";
+
+function myrecv(s) { puts('>>>>>>>>>>MYRECV: '+s.toString()); };
+Interp.conf({recvCmd:'myrecv'});
+
+var cnt=0, i = new Interp({subthread:true, scriptStr:cmd, recvCmd:'recv'});
+
+sys.sleep(1000);
+var obj = {AA:1,BB:2};
+var aobj = [obj];
+while (cnt<10) {
+  sys.update(100);
+  puts("Main-loop");
+  i.send(obj);
+  //i.send(aobj,'recv2');
+} 
+</pre></nowiki>
+
+<h4>Aliases</h4>
+
+The alias method allows defining commands in a sub-interp that end up getting invoked in the parent. 
+The definition can also add arguments the are to be prepended to the called method. 
+Aliases can later be redefined as null to delete them.
+
+    <nowiki><pre class=verbatim>
+var i = new Interp(); function myAlias(interp,name,arg1,arg2) {
+   puts('myAlias: interp name arg1 '+arg2);
+}
+function myAlias2(arg1,arg2) {
+   puts('myAlias2: arg1 '+arg2);
+}
+i.alias('foo', myAlias, [i, 'foo']); i.alias('bar', myAlias2,null);
+puts(i.alias()); puts(i.alias('foo')); puts(i.alias('foo', myAlias));
+i.eval('bar(1,2)');
+i.eval('var bb = {x:1};'); i.alias('bb.fig', myAlias, [i, 'bb.fig']); i.eval('bb.fig(1)');
+i.alias('bb.fig', myAlias, [i, 'bb.FIG']); i.eval('bb.fig(1)');
+puts(i.alias()); i.alias('bb.fig', null, null); puts(i.alias());
+try { i.eval('bb.fig(1)'); } catch(e) { puts("CAUGHT ERROR: "+e); }; puts("OK");
+</pre></nowiki>
+
+<h4>Options</h4>
+
+Options can be set for the current interpreters options as in:
+
+    <nowiki><pre class=verbatim>
+ # Interp.conf({strict:false});
+ # Interp.conf();
+
+    { args:[  ], debug:0, indexFile:null, isSafe:false, lockTimeout:-1, maxDepth:1000, 
+      maxIncDepth:50, maxInterpDepth:10, maxOpCnt:0, maxUserObjs:0, strict:false, 
+      onExit:null, privKeys:true, rcvCmd:null, scriptFile:null, scriptStr:null, 
+      subthread:false, doUnlock:true }
+</pre></nowiki>
+
+<h4>Data Between Interp</h4>
+
+Data objects may not be shared between interps. The mechanism enforcing this converts all data sent between interps to/from JSON. Allowances should be made for the overhead this entails.
+Environment Variables
+
+The following environment variables are available:
+  *  JSI_DEBUG: Turn on debugging features.
+  *  JSI_STRICT: Shortcut for the strict interp option: use "0" to disable.
+  *  JSI_INTERP_OPTS: Interp options eg. "{isSafe:true, maxOpCnt:1000000}"
+
+<h4>Backward Compatibility</h4>
+
+The strict option is provided to support backward compatibility with code written which uses new options available in future releases of Jsi. Running such code with an older Jsi can cause script parse errors due to unknown options. We can disable this by adding Interp.conf({strict:false}); to the script. Your application may still not work correctly, but it will at least it will parse.
+You can also query the Jsi version using info.version().

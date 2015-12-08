@@ -1,0 +1,9 @@
+// Index file: sourced the first time an unknown function call occurs.
+// This sets up the auto-index which loads code on demand...
+if (!jsiIndex) jsiIndex = {};
+jsiIndex.jsi_wpp        = 'source("'+info.scriptDir()+'/wpp.jsi")';
+jsiIndex.jsi_websrv     = 'source("'+info.scriptDir()+'/websrv.jsi")';
+jsiIndex.jsi_invokeCmd  =
+jsiIndex.jsi_parseOpts  = 'source("'+info.scriptDir()+'/parseOpts.jsi")';
+source(info.scriptDir()+'/string.jsi');
+

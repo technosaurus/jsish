@@ -1,0 +1,52 @@
+<title>Websocket</title>
+[./reference.wiki#Websocket|&lt;Websocket Reference&gt;]
+<h4>Description</h4>
+
+The WebSocket extension uses libwebsockets to implement
+bidirectional socket communication with a web browser.
+Used in conjunction with [./js-sqlite.wiki|Sqlite] and [./js-json.wiki|JSON],
+web browser based applications are easy to implement.
+
+<h4>Example</h4>
+
+The following creates a client and server using Websockets.
+First the server file <b>ws.js</b>:
+
+    <nowiki><pre class=verbatim>
+function ws_input(data, id) {
+    puts("ws_input: "+ id +": "+data);
+};
+
+var ws = new Websocket({callback:ws_input});
+var msg = { str:"whos there?", cnt:0 };
+while (true) {
+    sys.update(1);
+    if ((msg.cnt++ % 10) == 0)
+       ws.send(JSON.stringify(msg));
+}
+</pre></nowiki>
+
+Next the client file: <b>wsc.js</b>:
+
+    <nowiki><pre class=verbatim>
+function wsc_input(data) {
+    puts("wsc_input: "+data);
+};
+
+var ws = new Websocket({client:true, callback:wsc_input});
+var msg = { str:"knock knock", cnt:0 };
+
+while (true) {
+    msg.cnt++;
+    ws.send(JSON.stringify(msg));
+    sys.update(1);
+}
+</pre></nowiki>
+
+Which we run with:
+
+    <nowiki><pre class=verbatim>
+  jsish ws.js &
+  jsish wsc.js
+</pre></nowiki>
+

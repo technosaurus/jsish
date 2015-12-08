@@ -1,0 +1,10 @@
+- Collapse eval of a single function call to call + JSON.
+- Implement Regexp.exec for g option.
+- Fixup info.cmds
+- Add full tests for new features.
+- Valgrind for memory leaks
+
+Less likely.
+
+- Implement socket/udp
+- Implement channels/vfs/zip-pkg??

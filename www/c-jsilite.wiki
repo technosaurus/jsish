@@ -1,0 +1,19 @@
+<title>C-API: JSI_LITE</title>
+
+Jsi provides a set of light-weight subset of C functions 
+that can be used without the script engine.  These include:
+
+  *  [./c-dstring.wiki|Jsi_DString]: Dynamic string.
+  *  [./c-hash.wiki|Jsi_Hash]: Hash tables.
+  *  [./c-tree.wiki|Jsi_Tree]: Tree structures.
+  *  [./c-sqlite.wiki|Jsi_DbQuery]: Sqlite database access.
+  *  a subset a [./c-options.wiki|C Options] (for database):
+
+    <nowiki><pre class=verbatim>
+#define JSI_LITE_ONLY
+#include "jsi.c"
+int main() {
+    Jsi_DString dStr = {"Hello World"};
+    Jsi_Hash* hPtr = Jsi_HashNew(NULL,0);
+}
+</pre></nowiki>

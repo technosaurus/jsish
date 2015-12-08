@@ -1,0 +1,86 @@
+<title>Using Jsi</title>
+
+The easiest way to get play around with Jsi is interactively. eg. On Ubuntu:
+
+    <nowiki><pre class=verbatim>
+  ./jsish
+# var a = [1,2,3];
+# for (var i in a) { puts(a[i]); }
+1
+2
+3
+...
+</pre></nowiki>
+
+Or, you can run a script with arguments:
+  jsish prog.js arg1 arg2 ...
+Or evaluate javascript from the command line with -e:
+
+    <pre class=verbatim>
+  jsish -e 'var i = 0; while (i++<10) puts(i);'
+</pre>
+
+<h4>Command Options</h4>
+
+Various commands in Jsi can take an options object containing properties to parametrize behaviour. For example:
+
+    <pre class=verbatim>
+  var db = new Sqlite('/tmp/testsql.db',{maxStmts:1000, readonly:true});
+  db.conf( {debug:1} );
+  puts( db.conf() );
+</pre>
+
+In the case of object commands, a conf() method provides access to options after creation.
+Introspection
+
+There are several levels of introspection built-in to Jsi. The conf() method above is one example. Another is apparent upon and invalid method invocation, eg:
+
+    <nowiki><pre class=verbatim>
+  # info.xxx()
+  error: 'info', sub-commands are: cmds data error event executable funcs interp
+  keywords named platform revisions script vars version.    (at or near "xxx")
+</pre></nowiki>
+
+However, the collection of info methods provide the most important introspection:
+
+    <nowiki><pre class=verbatim>
+   # info.cmds()
+ [ "Array", "Boolean", "File", "Function", "Interp", "JSON", "Math", "Number",
+   "Object", "RegExp", "Sqlite", "String", "Websocket", "assert", "clearInterval",
+   "console", "decodeURI", "encodeURI", "exit", "file", "include", "info",
+   "isFinite", "isNaN", "load", "parseFloat", "parseInt", "puts", "quote",
+   "setInterval", "setTimeout", "signal", "sprintf", "sys", "zvfs" ]
+</pre></nowiki>
+
+<h4>Doing More</h4>
+
+All built-in Jsi commands (as well as their options) are documented in the Reference. 
+
+<h4>Executable Scripts</h4>
+
+To make a script executable (under unix) the first line of a Jsi script should start with #!, eg:
+
+    <nowiki><pre class=verbatim>
+cat > myargs <<EOF
+#!/usr/bin/env jsish
+for (var i in console.args) {
+   puts(console.args[i]);
+}
+EOF
+chmod a+rx myargs
+./myargs
+</pre></nowiki>
+
+<h4>rlwrap</h4>
+
+If you are running the statically compiled Linux version,
+you can use rlwrap to provide command-line editing:
+
+    <nowiki><pre class=verbatim>
+  rlwrap ./jsish
+</pre></nowiki>
+
+<h4>Limitations</h4>
+
+A <b>return</b> is not supported within a try/catch.
+

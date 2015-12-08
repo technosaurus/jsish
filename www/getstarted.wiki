@@ -1,0 +1,52 @@
+<title>JSI In 5 Minutes or Less</title>
+
+<h4>Embedding JSI in C</h4>
+
+The file "jsi.c" contains the entire source for Jsi <i>amalgamated</i> into a single, standalone file.
+This provides a convenient way to embed Jsi into any C application.
+
+Simply extract "jsi.c" from
+[http://pdqi.com/downloads/jsish-1.1.0/jsi_single_src.zip|jsi_single_src.zip],
+and include this file directly into your
+source file, eg.
+<nowiki><pre class=verbatim>
+    #include "jsi.c"
+    
+    int main(int argc, char *argv[])
+    {
+        Jsi_Interp *interp = Jsi_InterpCreate(NULL, argc, argv, 0);
+        Jsi_EvalString(interp, "for (var i=1; i<=3; i++)  puts('TEST: '+i);", 0);
+        //...
+    }
+</pre></nowiki>
+
+<h4>The Shell: jsish</h4>
+
+If you just want to give "jsish" a test drive,
+linux and windows binaries can be downloaded from [http://pdqi.com/downloads/jsish-1.1.0/].
+Here is a [./usingjsi.wiki|brief tutorial on their use].
+
+<h4>Get Source Using Fossil</h4>
+
+Jsi development is maintained within a [http://www.fossil-scm.org|fossil] repository. Once
+the "fossil" command is installed, Jsi can be pulled down thus:
+
+<nowiki><pre class=verbatim>
+  fossil clone http://pdqi.com/cgi-bin/cgiwrap/pdqi/jsi.cgi jsi.fossil
+  mkdir jsi
+  cd jsi
+  fossil open ../jsi.fossil
+  cd jsi
+</pre></nowiki>
+
+Then follow the directions in [./buildjsi.wiki|building jsi].
+
+<h4>Getting Source Without Fossil</h4>
+
+If you can't (or don't want to use fossil) you can visit [http://pdqi.com/jsi]
+and login as anonymous.  Then navigate to <b>Files</b> and it will let you download a zip (or tar ball).
+Note however, that this approach makes it harder to get updates.
+
+<h4>Email Contact</h4>
+
+<img src=email.png >.

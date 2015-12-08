@@ -1,0 +1,47 @@
+<title>Events</title>
+
+<h4>Description</h4>
+Ecmascript lets you schedule events using <i>setTimeout/setInterval/clearInterval</i>.
+In Jsi, this is extended with <i>info.event()</i> to allow querying pending events,
+ and <i>sys.update()</i> to service events:
+ 
+    <nowiki><pre class=verbatim>
+function foo() {
+    puts("FOO: "+ i++);
+    if (i>=3) exit(0);
+}
+var i=0, id = setInterval(foo,1000);
+var evs = info.event();
+for (var i in evs) {
+  puts('EV('+i+'): ' + info.event(evs[i]).toString());
+}
+sys.update();
+</pre></nowiki>
+
+which outputs:
+
+    <nowiki><pre class=verbatim>
+EV(0): { builtin:false, count:0, initial:1000, once:false, type:"timer", when:1000 }
+FOO: 0
+FOO: 1
+FOO: 2
+</pre></nowiki>
+
+<h4>sys.update(?mintime|options?)</h4>
+
+Process events until minTime milliseconds exceeded, or forever if -1. 
+Default minTime is 0. With a positive mintime, a sleep occurs between each event check pass. 
+The returned value is the number of events processed.
+
+    <p><nowiki>
+<table border='1' class='optstbl' ><tr><th >Option</th><th >Description</th></tr>
+<tr><td>maxEvents</td><td>Maximum number of events to process</td></tr>
+<tr><td>maxPasses</td><td>Maximum passes through event queue</td></tr>
+<tr><td>minTime</td><td>Minimum milliseconds before returning, or -1 to loop forever</td></tr>
+<tr><td>sleep</td><td>Sleep time between event checks in milliseconds</td></tr>
+</table></nowiki>
+
+<h4>info.event(?id?)</h4>
+
+List events or info for 1 event (created with setTimeout/setInterval).
+With no args, returns list of all outstanding events. With one arg, returns info for the given event id.

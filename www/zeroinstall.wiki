@@ -1,0 +1,16 @@
+<title>Zero Install</title>
+Zero Install refers to using Jsi to deploy a standalone application in a self contained executable.
+Simply this uses [./js-zvfs.wiki|Zvfs] to wrap scripts, web pages, images, etc all into
+a zip archive appended to the end of the jsish binary.
+
+And because Jsi provides the web server, browser interface, database, and scripting environment,
+a full featured, standalone applications can be implemented without low level coding.
+
+On the other hand, if you need the speed of C, Jsi facilitates writing extensions which can easily
+be incorporated into jsish, or Jsi linked into your own application.
+
+<h3>iSqlite</h3>
+
+<h3>Ledger</h3>
+
+  
